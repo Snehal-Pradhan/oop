@@ -1,0 +1,204 @@
+# Part 3 — Advanced OOPS Features
+
+## 1. SOLID Principles
+
+Five design guidelines by Robert C. Martin for maintainable, scalable OOP code.
+
+### SRP — Single Responsibility Principle
+
+> A class should have **only one reason to change**.
+
+```java
+// ❌ Bad — two responsibilities
+class Employee {
+    void calculateSalary() { }
+    void generateReport() { }
+}
+
+// ✅ Good — each class has one job
+class SalaryCalculator {
+    double calculate(Employee emp) { }
+}
+class ReportGenerator {
+    void generate(Employee emp) { }
+}
+```
+
+**Use case:** Changes to salary calculation don't affect report generation.
+
+### OCP — Open/Closed Principle
+
+> Classes should be **open for extension, closed for modification**.
+
+Add new functionality by extending, NOT by changing existing code.
+
+```java
+// ❌ Bad — need to modify if new shape added
+class AreaCalculator {
+    double calculate(Object shape) {
+        if (shape instanceof Circle) ...
+        else if (shape instanceof Rectangle) ...
+    }
+}
+
+// ✅ Good — extend Shape, don't modify
+abstract class Shape {
+    abstract double area();
+}
+class Circle extends Shape {
+    double area() { return Math.PI * r * r; }
+}
+class Rectangle extends Shape {
+    double area() { return l * w; }
+}
+```
+
+**Use case:** Add `Triangle` without touching existing code — just extend `Shape`.
+
+### LSP — Liskov Substitution Principle
+
+> Subtypes must be substitutable for their base types **without breaking the program**.
+
+```java
+// ❌ Violation — Penguin can't fly
+class Bird { void fly() { } }
+class Penguin extends Bird {
+    void fly() { throw new UnsupportedOperationException(); }
+}
+
+// ✅ Fix — separate interfaces
+interface FlyingBird { void fly(); }
+class Sparrow implements FlyingBird { public void fly() { } }
+class Penguin { /* doesn't implement FlyingBird */ }
+```
+
+**Use case:** Substitute any subclass without unexpected crashes.
+
+### ISP — Interface Segregation Principle
+
+> A class should not be forced to implement interfaces it **does not use**.
+
+```java
+// ❌ Bad — Robot forced to implement eat()
+interface Worker { void work(); void eat(); }
+class Robot implements Worker {
+    public void work() { }
+    public void eat() { throw new Error(); }  // unnecessary!
+}
+
+// ✅ Good — segregated interfaces
+interface Workable { void work(); }
+interface Eatable { void eat(); }
+class Robot implements Workable { public void work() { } }
+class Human implements Workable, Eatable { ... }
+```
+
+**Use case:** Robot doesn't need `eat()` — don't force it.
+
+### DIP — Dependency Inversion Principle
+
+> High-level modules should **not depend on low-level modules**. Both should depend on **abstractions**.
+
+```java
+// ❌ Bad — Computer depends on concrete WiredKeyboard
+class Computer {
+    private WiredKeyboard kb = new WiredKeyboard();
+}
+
+// ✅ Good — depend on abstraction
+interface Keyboard { void connect(); }
+class Computer {
+    private Keyboard kb;               // depends on abstraction
+    Computer(Keyboard kb) { this.kb = kb; }
+}
+class WiredKeyboard implements Keyboard { ... }
+class WirelessKeyboard implements Keyboard { ... }
+```
+
+**Use case:** Swap any Keyboard implementation without modifying Computer.
+
+### Summary
+
+| Principle | Slogan |
+|-----------|--------|
+| SRP | One class, one job |
+| OCP | Extend, don't modify |
+| LSP | Subclass must behave like parent |
+| ISP | Don't force unused methods |
+| DIP | Depend on interfaces, not concrete classes |
+
+---
+
+## 2. Object Lifecycle in Java
+
+Every Java object goes through: **Creation → Usage → Garbage Collection → Destruction**
+
+### Creation
+Memory allocated on heap with `new` keyword. Reference stored on stack.
+
+```java
+Student s = new Student("Raj");  // s on stack, Student object on heap
+```
+
+### Garbage Collection (GC)
+
+Automatic memory management. JVM GC identifies unreachable objects and frees memory.
+
+**Mark Phase:** GC starts from root set (local variables, static fields), traverses object graph, marks reachable objects.
+
+**Sweep Phase:** GC sweeps the heap, deletes unmarked (unreachable) objects, reclaims memory.
+
+**Compaction Phase:** Moves live objects together to eliminate memory fragmentation. (Not all collectors do this — G1 does region-based compaction.)
+
+### GC Pauses (Stop-the-World)
+
+During GC, JVM may pause application threads to safely manage memory. Advanced collectors (G1, ZGC, Shenandoah) minimize pause times.
+
+### System.gc()
+
+Requests GC to run — **not guaranteed**. Generally avoid in production (unpredictable performance impact).
+
+### Memory Leaks in Java
+
+Memory leaks happen when objects are **unintentionally held** (still referenced but no longer needed), preventing GC.
+
+**Common causes:**
+- Static collections that grow indefinitely
+- Listeners/callbacks not unregistered
+- Caches without cleanup logic
+
+```java
+class LeakyClass {
+    private static List<Object> cache = new ArrayList<>();
+
+    void add(Object o) { cache.add(o); }   // never removed — memory grows forever!
+}
+```
+
+### Cyclic References
+
+Two objects referencing each other in a loop. In Java, **not a problem** — GC uses reachability (graph traversal), not reference counting, so cyclic garbage is properly collected.
+
+```java
+class Node { Node next; }
+Node a = new Node();
+Node b = new Node();
+a.next = b;
+b.next = a;   // cycle — but Java GC handles this fine
+```
+
+### Best Practices
+- Minimize variable scope (reference goes out of scope → eligible for GC sooner)
+- Clear static collections when done
+- Unregister listeners/callbacks
+- Use weak references for caches when appropriate
+- Avoid explicit `System.gc()` calls
+- Use try-with-resources for file/network resources
+
+### Memory Areas
+
+| Area | Stores |
+|------|--------|
+| **Stack** | Primitives, object references (local variables) |
+| **Heap** | All objects created with `new` |
+| **Method Area** | Class metadata, static variables, constants |
